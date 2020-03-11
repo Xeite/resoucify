@@ -29,7 +29,7 @@ class Query(Param):
     """
 
 
-class Resource(collections.Mapping):
+class Resource(collections.MutableMapping):
 
     def __init__(self, name, **kwargs):
         self._name = name
@@ -46,6 +46,12 @@ class Resource(collections.Mapping):
 
     def __getitem__(self, key):
         return self._attributes[key]
+
+    def __setitem__(self, key, value):
+        self._attributes[key] = value
+
+    def __delitem__(self, key):
+        del self._attributes[key]
 
     def __iter__(self):
         return iter(self._attributes)
@@ -131,7 +137,6 @@ class ResourceDescriptor(metaclass=MetaResourceDescriptor):
 
             # Any other keyword argument would be matched to 'kwargs'
             sigs.append(forge.vkw('kwargs'))
-
             setattr(self, method, forge.sign(*sigs)(getattr(self, method)))
 
         for method in list(self.methods):
@@ -191,7 +196,10 @@ class ResourceDescriptor(metaclass=MetaResourceDescriptor):
                             params=kwargs.pop('params', None), json=kwargs)
 
         data = self._jsonify(resp, key=key)
-        return Resource(self._name, **data) if data else resp.ok
+        if isinstance(data, collections.Mapping):
+            return Resource(self._name, **data)
+
+        return resp.ok
 
     def get(self, **kwargs):
         method = 'get'
@@ -202,7 +210,10 @@ class ResourceDescriptor(metaclass=MetaResourceDescriptor):
                             params=kwargs, json=kwargs.pop('json', None))
 
         data = self._jsonify(resp, key=key)
-        return Resource(self._name, **data) if data else None
+        if isinstance(data, collections.Mapping):
+            return Resource(self._name, **data)
+
+        return data
 
     def list(self, *args, **kwargs):
         method = 'list'
